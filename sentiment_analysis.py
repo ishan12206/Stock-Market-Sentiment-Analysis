@@ -8,10 +8,10 @@ from datetime import datetime, timedelta
 from transformers import pipeline
 
 # ---------- Configuration ----------
-BEARER_TOKEN = "YOUR_TWITTER_BEARER_TOKEN"
+BEARER_TOKEN = "YOUR_TWITTER_BEARER_TOKEN" 
 client = tweepy.Client(bearer_token=BEARER_TOKEN)
 
-# Initialize Hugging Face pipeline
+# Initializing Hugging Face pipeline
 sentiment_pipeline = pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment-latest")
 
 # ---------- Twitter Data Collection ----------
@@ -39,7 +39,7 @@ def clean_tweet(text):
     text = re.sub(r"#", "", text)
     text = re.sub(r"\$\w+", "", text)
     text = re.sub(r"\s+", " ", text)
-    return text.strip()
+    return text.strip() #removing any irrelevant or redundant text from the tweet for accuracy enhacement
 
 # ---------- Sentiment Scoring (CardiffNLP) ----------
 def get_roberta_sentiment_score(text):
@@ -66,7 +66,7 @@ def analyze_sentiment_with_score(stock_symbol):
     df['date'] = df['created_at'].dt.date
     sentiment_daily = df.groupby('date')['score'].mean().reset_index()
     sentiment_daily.columns = ['date', 'avg_sentiment']
-    return sentiment_daily
+    return sentiment_daily #adding a sentiment score column to the dataframe using Roberta sentiment scores.
 
 # ---------- Stock Price ----------
 def get_stock_price(symbol, days=3):
@@ -76,7 +76,7 @@ def get_stock_price(symbol, days=3):
     data = data.reset_index()[['Date', 'Close']]
     data['Date'] = data['Date'].dt.date
     data.columns = ['date', 'close']
-    return data
+    return data   #fetching stock price data for a 3 day window
 
 # ---------- Correlation & Plot ----------
 def correlate_sentiment_with_price(symbol):
