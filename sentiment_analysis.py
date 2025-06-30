@@ -1,15 +1,18 @@
 import tweepy
 import pandas as pd
 import yfinance as yf
-from textblob import TextBlob
 import re
 import seaborn as sns
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
+from transformers import pipeline
 
 # ---------- Configuration ----------
 BEARER_TOKEN = "YOUR_TWITTER_BEARER_TOKEN"
 client = tweepy.Client(bearer_token=BEARER_TOKEN)
+
+# Initialize Hugging Face pipeline
+sentiment_pipeline = pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment-latest")
 
 # ---------- Twitter Data Collection ----------
 def fetch_tweets(stock_symbol, days=3, max_results=300):
@@ -38,9 +41,19 @@ def clean_tweet(text):
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
-# ---------- Sentiment Scoring ----------
-def get_sentiment_score(text):
-    return TextBlob(text).sentiment.polarity
+# ---------- Sentiment Scoring (CardiffNLP) ----------
+def get_roberta_sentiment_score(text):
+    try:
+        result = sentiment_pipeline(text[:512])[0]  # Truncate long tweets
+        label = result['label'].lower()
+        if label == "positive":
+            return 1
+        elif label == "negative":
+            return -1
+        else:
+            return 0
+    except Exception as e:
+        return 0  # Default to neutral if model fails
 
 def analyze_sentiment_with_score(stock_symbol):
     df = fetch_tweets(stock_symbol)
@@ -49,9 +62,9 @@ def analyze_sentiment_with_score(stock_symbol):
         return pd.DataFrame()
 
     df['clean_text'] = df['text'].apply(clean_tweet)
-    df['polarity'] = df['clean_text'].apply(get_sentiment_score)
+    df['score'] = df['clean_text'].apply(get_roberta_sentiment_score)
     df['date'] = df['created_at'].dt.date
-    sentiment_daily = df.groupby('date')['polarity'].mean().reset_index()
+    sentiment_daily = df.groupby('date')['score'].mean().reset_index()
     sentiment_daily.columns = ['date', 'avg_sentiment']
     return sentiment_daily
 
@@ -80,7 +93,7 @@ def correlate_sentiment_with_price(symbol):
 
     sns.regplot(data=df, x='avg_sentiment', y='close', line_kws={"color": "red"})
     plt.title(f'Sentiment vs Closing Price for ${symbol}')
-    plt.xlabel("Average Sentiment Polarity")
+    plt.xlabel("Average Sentiment Score")
     plt.ylabel("Closing Price")
     plt.grid(True)
     plt.tight_layout()
@@ -90,7 +103,7 @@ def correlate_sentiment_with_price(symbol):
 
 # ---------- Main ----------
 if __name__ == "__main__":
-    symbol = "AAPL"  # Change to any stock symbol like TSLA, NVDA, etc.
+    symbol = "TSLA"  # Change to your desired stock
     result_df = correlate_sentiment_with_price(symbol)
     print("\nMerged Data:")
     print(result_df)
